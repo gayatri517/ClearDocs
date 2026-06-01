@@ -1,0 +1,96 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cleardocs-postgres
+    environment:
+      POSTGRES_DB: cleardocs
+      POSTGRES_USER: cleardocs
+      POSTGRES_PASSWORD: cleardocs_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cleardocs -d cleardocs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cleardocs-net
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: cleardocs-mongo
+    environment:
+      MONGO_INITDB_DATABASE: cleardocs
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cleardocs-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cleardocs-redis
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cleardocs-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cleardocs-app
+    environment:
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/cleardocs
+      POSTGRES_USER: cleardocs
+      POSTGRES_PASSWORD: cleardocs_secret
+      MONGO_URI: mongodb://mongodb:27017/cleardocs
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: VGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBDbGVhckRvY3Mgand0IHRva2VucyEhISA=
+      JWT_EXPIRATION: 86400000
+      JWT_REFRESH_EXPIRATION: 604800000
+      STORAGE_PATH: /app/storage
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - document_storage:/app/storage
+    networks:
+      - cleardocs-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  document_storage:
+
+networks:
+  cleardocs-net:
+    driver: bridge

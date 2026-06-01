@@ -1,0 +1,22 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+  cache:
+    type: simple
+
+cleardocs:
+  jwt:
+    secret: VGVzdFNlY3JldEtleUZvckNsZWFyRG9jc0p3dFRva2Vucw==
+    expiration: 86400000
+    refresh-expiration: 604800000
+  storage:
+    base-path: /tmp/cleardocs-test/documents
+
+logging:
+  level:
+    com.cleardocs: WARN
+    org.springframework: WARN
